@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=auto">
+  <!-- Fill the notch/status-bar area with the page background in iOS Safari -->
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <title>Roomba Bluetooth Matter Onboarder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg:       #ffffff;
+      --surface:  #f2f2f7;
+      --card:     #ffffff;
+      --border:   #d1d1d6;
+      --primary:  #007AFF;
+      --success:  #34C759;
+      --warn:     #FF9500;
+      --danger:   #FF3B30;
+      --text:     #1d1d1f;
+      --text2:    #6e6e73;
+      --text3:    #aeaeb2;
+      --shadow:   0 2px 16px rgba(0,0,0,.10);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg:      #000000;
+        --surface: #1c1c1e;
+        --card:    #2c2c2e;
+        --border:  #38383a;
+        --text:    #f5f5f7;
+        --text2:   #98989d;
+        --text3:   #636366;
+        --shadow:  0 2px 16px rgba(0,0,0,.40);
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg:      #000000;
+      --surface: #1c1c1e;
+      --card:    #2c2c2e;
+      --border:  #38383a;
+      --text:    #f5f5f7;
+      --text2:   #98989d;
+      --text3:   #636366;
+      --shadow:  0 2px 16px rgba(0,0,0,.40);
+    }
+
+    /* Root element fills the notch/status-bar area with the page background
+       when the browser uses viewport-fit=auto (the default) */
+    html { background: var(--bg); }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px env(safe-area-inset-bottom, 0px);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      /* Fill the viewport so the spacer/button layout works on short screens.
+         Grows beyond 100dvh when content is long, letting body scroll naturally. */
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 20px 0 8px;
+    }
+    .header-icon {
+      width: 44px; height: 44px;
+      background: var(--primary);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+    }
+    .header .sub {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 1px;
+    }
+
+    /* ── Screen ── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      padding-bottom: 32px;
+    }
+    .screen.active { display: flex; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text2);
+      margin-bottom: 12px;
+    }
+
+    /* ── Warning box ── */
+    .warning-box {
+      background: rgba(255,149,0,.12);
+      border: 1px solid rgba(255,149,0,.3);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .warning-box .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .warning-box p { font-size: 14px; line-height: 1.5; color: var(--text); }
+    .warning-box strong { font-weight: 600; }
+
+    /* ── Info rows ── */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-size: 14px; color: var(--text2); flex-shrink: 0; }
+    .info-value { font-size: 14px; font-weight: 500; text-align: right; word-break: break-all; }
+
+    /* ── Spinner ── */
+    .spinner-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 20px;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3.5px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-label { font-size: 16px; color: var(--text2); }
+
+    /* ── Button ── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border-radius: 14px;
+      border: none;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { opacity: .8; transform: scale(.98); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: var(--surface); color: var(--primary); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    /* Muted button — inverted: dark surface background, blue text */
+    .btn-muted {
+      background: var(--text);
+      color: var(--primary);
+      border: none;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .btn-muted {
+        background: var(--surface);
+      }
+    }
+    :root[data-theme="dark"] .btn-muted {
+      background: var(--surface);
+    }
+    .btn-mt { margin-top: 14px; }
+    .btn:disabled { opacity: .45; cursor: default; }
+
+    /* ── Step indicator ── */
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+    .step-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background .3s;
+    }
+    .step-dot.done { background: var(--success); }
+    .step-dot.active { background: var(--primary); width: 20px; border-radius: 4px; }
+
+    /* ── Button press prompt ── */
+    .press-prompt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 24px;
+      text-align: center;
+    }
+    .robot-icon {
+      font-size: 64px;
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+    .press-prompt h2 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+    .press-prompt p { font-size: 16px; color: var(--text2); line-height: 1.5; max-width: 300px; }
+    .countdown {
+      font-size: 48px;
+      font-weight: 300;
+      color: var(--primary);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+    }
+    .countdown.urgent { color: var(--danger); }
+
+    /* ── QR result ── */
+    .qr-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 4px 0 8px;
+    }
+    #qr-canvas, #pc-qr-canvas {
+      border-radius: 12px;
+      overflow: hidden;
+      display: inline-block;
+    }
+    #qr-canvas canvas, #qr-canvas img,
+    #pc-qr-canvas canvas, #pc-qr-canvas img { display: block; border-radius: 8px; }
+
+    .code-box {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .code-text {
+      font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .copy-btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity .15s;
+    }
+    .copy-btn:active { opacity: .75; }
+    .copy-btn.copied { background: var(--success); }
+
+    .instructions {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .instr-step { display: flex; align-items: flex-start; gap: 12px; }
+    .instr-num {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .instr-text { font-size: 15px; line-height: 1.45; color: var(--text); }
+    .instr-text span { color: var(--primary); font-weight: 500; }
+
+    /* ── Error screen ── */
+    .error-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      flex: 1;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px 0;
+    }
+    .error-icon { font-size: 52px; }
+    .error-title { font-size: 22px; font-weight: 700; }
+    .error-msg { font-size: 15px; color: var(--text2); line-height: 1.5; max-width: 320px; }
+
+    /* ── Compat banner ── */
+    #compat-banner {
+      background: rgba(255,59,48,.1);
+      border: 1px solid rgba(255,59,48,.3);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-top: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      display: none;
+    }
+    #compat-banner strong { color: var(--danger); }
+    #compat-banner a { color: var(--primary); }
+
+    /* ── Done badge ── */
+    .done-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(52,199,89,.15);
+      border: 1px solid rgba(52,199,89,.3);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--success);
+      margin-top: 16px;
+      align-self: center;
+    }
+
+    .spacer { flex: 1; }
+
+    /* ── Robot cards (home screen) ── */
+    .robot-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 10px;
+      box-shadow: var(--shadow);
+    }
+    .robot-card-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .robot-avatar {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .robot-card-info { flex: 1; min-width: 0; }
+    .robot-card-name {
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .robot-card-sub {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .robot-forget-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: var(--surface);
+      color: var(--text2);
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    .robot-forget-btn:hover { background: var(--danger); color: #fff; }
+    .robot-card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .btn-action {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-action:active { opacity: .75; }
+    .btn-action-primary { background: var(--primary); color: #fff; }
+    .btn-action-success {
+      background: rgba(52,199,89,.12);
+      border: 1px solid rgba(52,199,89,.3);
+      color: var(--success);
+    }
+    .btn-action-success-warn {
+      background: rgba(255,149,0,.12);
+      border: 1px solid rgba(255,149,0,.3);
+      color: var(--warn);
+    }
+    .btn-action-secondary {
+      background: var(--surface);
+      color: var(--primary);
+    }
+    /* Inverted action — dark background, blue text; for Re-onboard */
+    .btn-action-inverted {
+      background: var(--text);
+      color: var(--primary);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .btn-action-inverted {
+        background: var(--surface);
+      }
+    }
+    :root[data-theme="dark"] .btn-action-inverted {
+      background: var(--surface);
+    }
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin: 20px 0 4px;
+    }
+
+    /* ── Expiry bar ── */
+    .expiry-bar-wrap {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .expiry-bar-fill {
+      height: 100%;
+      background: var(--success);
+      transition: width .5s linear, background .5s;
+      border-radius: 2px;
+    }
+    .expiry-bar-fill.warn  { background: var(--warn); }
+    .expiry-bar-fill.crit  { background: var(--danger); }
+    .expiry-label {
+      font-size: 13px;
+      color: var(--text2);
+      text-align: center;
+    }
+    .expiry-label.warn  { color: var(--warn); font-weight: 600; }
+    .expiry-label.crit  { color: var(--danger); font-weight: 700; }
+    .expiry-label.expired { color: var(--text3); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      /* sit above the primary action button (~52px tall) + its 14px margin-top
+         + 16px body padding + safe-area inset = ~100px clearance             */
+      bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--text);
+      color: var(--bg);
+      padding: 14px 24px;
+      border-radius: 28px;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.4;
+      width: calc(100vw - 48px);
+      max-width: 440px;
+      white-space: normal;
+      text-align: center;
+      box-shadow: 0 6px 32px rgba(0,0,0,.28);
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+    .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Header info button ── */
+    .header { position: relative; }
+    .btn-info {
+      margin-left: auto;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--surface);
+      color: var(--primary);
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;          /* shown via JS when robots exist */
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-info:active { background: var(--border); }
+
+    /* ── GitHub link ── */
+    .btn-github {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-decoration: none;
+      transition: background .15s, opacity .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-github:hover { opacity: .75; }
+    .btn-github:active { background: var(--border); }
+    .btn-github svg { width: 28px; height: 28px; }
+
+    /* ── Nickname + info modals (shared bottom-sheet) ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-sheet {
+      background: var(--card);
+      border-radius: 20px 20px 0 0;
+      padding: 0 20px 32px;
+      width: 100%; max-width: 480px;
+      box-shadow: 0 -4px 30px rgba(0,0,0,.18);
+      animation: slide-up .22s ease;
+      max-height: 85dvh;
+      overflow-y: auto;
+    }
+    @keyframes slide-up {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .modal-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 0 6px;
+      position: sticky; top: 0; background: var(--card);
+    }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close {
+      width: 28px; height: 28px;
+      border-radius: 50%; border: none;
+      background: var(--surface); color: var(--text2);
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .modal-close:active { background: var(--border); }
+    .modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 18px; }
+    .modal-sub code {
+      font-size: 12px; background: var(--surface);
+      border-radius: 4px; padding: 1px 5px;
+      font-family: 'SF Mono','Fira Code',monospace;
+    }
+    .modal-input {
+      width: 100%; padding: 13px 15px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 16px; font-family: inherit;
+      background: var(--surface); color: var(--text);
+      outline: none; margin-bottom: 14px;
+    }
+    .modal-input:focus { border-color: var(--primary); }
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn { flex: 1; }
+
+    /* ── Pairing code expired state ── */
+    .expired-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    .expired-icon { font-size: 40px; }
+    .expired-title { font-size: 18px; font-weight: 700; color: var(--text3); }
+    .expired-sub { font-size: 14px; color: var(--text3); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Persistent header ── -->
+  <div class="header">
+    <div class="header-icon">🤖</div>
+    <div style="flex:1">
+      <h1>Roomba Matter Onboarder</h1>
+      <div class="sub">Pair your robot with Apple Home or any Matter controller</div>
+    </div>
+    <button class="btn-info" id="btn-info" aria-label="How it works">ⓘ</button>
+    <a class="btn-github" href="https://github.com/YOUR_USERNAME/YOUR_REPO" target="_blank" rel="noopener" aria-label="View on GitHub">
+      <svg width="98" height="96" viewBox="0 0 98 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M41.4395 69.3848C28.8066 67.8535 19.9062 58.7617 19.9062 46.9902C19.9062 42.2051 21.6289 37.0371 24.5 33.5918C23.2559 30.4336 23.4473 23.7344 24.8828 20.959C28.7109 20.4805 33.8789 22.4902 36.9414 25.2656C40.5781 24.1172 44.4062 23.543 49.0957 23.543C53.7852 23.543 57.6133 24.1172 61.0586 25.1699C64.0254 22.4902 69.2891 20.4805 73.1172 20.959C74.457 23.543 74.6484 30.2422 73.4043 33.4961C76.4668 37.1328 78.0937 42.0137 78.0937 46.9902C78.0937 58.7617 69.1934 67.6621 56.3691 69.2891C59.623 71.3945 61.8242 75.9883 61.8242 81.252L61.8242 91.2051C61.8242 94.0762 64.2168 95.7031 67.0879 94.5547C84.4102 87.9512 98 70.6289 98 49.1914C98 22.1074 75.9883 6.69539e-07 48.9043 4.309e-07C21.8203 1.92261e-07 -1.9479e-07 22.1074 -4.3343e-07 49.1914C-6.20631e-07 70.4375 13.4941 88.0469 31.6777 94.6504C34.2617 95.6074 36.75 93.8848 36.75 91.3008L36.75 83.6445C35.4102 84.2188 33.6875 84.6016 32.1562 84.6016C25.8398 84.6016 22.1074 81.1563 19.4277 74.7441C18.375 72.1602 17.2266 70.6289 15.0254 70.3418C13.877 70.2461 13.4941 69.7676 13.4941 69.1934C13.4941 68.0449 15.4082 67.1836 17.3223 67.1836C20.0977 67.1836 22.4902 68.9063 24.9785 72.4473C26.8926 75.2227 28.9023 76.4668 31.2949 76.4668C33.6875 76.4668 35.2187 75.6055 37.4199 73.4043C39.0469 71.7773 40.291 70.3418 41.4395 69.3848Z" fill="currentColor"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- ═══════════════════════════════ SCREEN: HOME ═══ -->
+  <div id="screen-home" class="screen active">
+    <div id="compat-banner"></div>
+
+    <div class="warning-box" style="margin-top:16px">
+      <span class="icon">⚠️</span>
+      <p><strong>Before you start:</strong><br>This process resets your Roomba's existing Matter configuration. Any current controller connection will stop working until you re-add your Roomba using the new pairing code generated here.</p>
+    </div>
+
+    <!-- Empty state: how-it-works (content injected by JS) -->
+    <div id="home-empty">
+      <div class="card" id="home-how-it-works"></div>
+    </div>
+
+    <!-- Robot list (shown when robots exist) -->
+    <div id="home-robots" style="display:none">
+      <div class="section-label">Your Roombas</div>
+      <div id="robot-cards"></div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn btn-primary btn-mt" id="btn-add-new">
+      Connect to Roomba
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════ SCREEN: CONNECTING ═══ -->
+  <div id="screen-connecting" class="screen">
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <div class="spinner-label" id="connecting-msg">Connecting…</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════ SCREEN: READY ═══ -->
+  <div id="screen-ready" class="screen">
+    <div class="press-prompt">
+      <div class="robot-icon">🤖</div>
+      <div>
+        <h2>Press the POWER button</h2>
+        <p style="margin-top:8px">Press the button on top of your Roomba to start Matter pairing mode</p>
+      </div>
+      <div class="countdown" id="countdown">60</div>
+    </div>
+    <button class="btn btn-secondary" id="btn-cancel-ready">Cancel</button>
+  </div>
+
+  <!-- ═══════════════════════════════ SCREEN: COMMISSIONING ═══ -->
+  <div id="screen-commissioning" class="screen">
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <div class="spinner-label">Reading pairing code…</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ SCREEN: RESULT ═══ -->
+  <div id="screen-result" class="screen">
+    <div class="done-badge">✓ Pairing code ready</div>
+
+    <!-- Expiry bar -->
+    <div class="card" style="padding:16px 20px">
+      <div class="card-title">Pairing window</div>
+      <div class="expiry-bar-wrap">
+        <div class="expiry-bar-fill" id="result-expiry-bar" style="width:100%"></div>
+      </div>
+      <div class="expiry-label" id="result-expiry-label">5:00 remaining</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Scan with Apple Home</div>
+      <div class="qr-wrap">
+        <div id="qr-canvas"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Setup PIN</div>
+      <div class="code-box">
+        <div class="code-text" id="manual-code"></div>
+        <button class="copy-btn" id="copy-manual">Copy</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Add to Apple Home</div>
+      <div class="instructions">
+        <div class="instr-step">
+          <div class="instr-num">1</div>
+          <div class="instr-text">Open the <span>Home</span> app and tap <span>(+) → Add Accessory</span></div>
+        </div>
+        <div class="instr-step">
+          <div class="instr-num">2</div>
+          <div class="instr-text">Point your camera at the QR code above — or tap <span>More options</span> and enter the setup PIN</div>
+        </div>
+        <div class="instr-step">
+          <div class="instr-num">3</div>
+          <div class="instr-text">If the robot doesn't appear, tap <span>"My Accessory Isn't Shown Here"</span> → <span>Enter code…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:4px">
+      <div class="card-title">QR string (other controllers)</div>
+      <div class="code-box" style="margin-top:0">
+        <div class="code-text" id="qr-string" style="font-size:13px;letter-spacing:.5px"></div>
+        <button class="copy-btn" id="copy-qr">Copy</button>
+      </div>
+    </div>
+
+    <button class="btn btn-secondary btn-mt" id="btn-result-done">Done</button>
+  </div>
+
+  <!-- ═══════════════════════════════ SCREEN: PAIRING CODE ═══ -->
+  <div id="screen-pairing-code" class="screen">
+    <div style="display:flex;align-items:center;gap:10px;margin-top:16px;margin-bottom:4px">
+      <button id="btn-pc-back" style="background:none;border:none;color:var(--primary);font-size:16px;font-weight:600;cursor:pointer;padding:4px 0;flex-shrink:0">← Back</button>
+      <div class="card-title" style="margin:0;flex:1;text-align:right" id="pc-robot-name">Pairing Code</div>
+    </div>
+
+    <!-- Valid state -->
+    <div id="pc-valid">
+      <div class="card" style="padding:16px 20px">
+        <div class="card-title">Pairing window</div>
+        <div class="expiry-bar-wrap">
+          <div class="expiry-bar-fill" id="pc-expiry-bar" style="width:100%"></div>
+        </div>
+        <div class="expiry-label" id="pc-expiry-label">5:00 remaining</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Scan with Apple Home</div>
+        <div class="qr-wrap">
+          <div id="pc-qr-canvas"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Setup PIN</div>
+        <div class="code-box">
+          <div class="code-text" id="pc-manual-code"></div>
+          <button class="copy-btn" id="pc-copy-manual">Copy</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:4px">
+        <div class="card-title">QR string (other controllers)</div>
+        <div class="code-box" style="margin-top:0">
+          <div class="code-text" id="pc-qr-string" style="font-size:13px;letter-spacing:.5px"></div>
+          <button class="copy-btn" id="pc-copy-qr">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expired state -->
+    <div id="pc-expired" style="display:none">
+      <div class="card">
+        <div class="expired-box">
+          <div class="expired-icon">⏱️</div>
+          <div class="expired-title">Pairing window expired</div>
+          <div class="expired-sub">The 5-minute Matter commissioning window has closed. Re-onboard this robot to generate a new pairing code.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════ SCREEN: ERROR ═══ -->
+  <div id="screen-error" class="screen">
+    <div class="error-wrap">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">Something went wrong</div>
+      <div class="error-msg" id="error-msg">An unknown error occurred.</div>
+    </div>
+    <button class="btn btn-primary btn-mt" id="btn-retry">Try Again</button>
+    <button class="btn btn-secondary btn-mt" id="btn-error-cancel">Cancel</button>
+  </div>
+
+</div><!-- .app -->
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Nickname modal ── -->
+<div class="modal-overlay" id="name-modal">
+  <div class="modal-sheet">
+    <div class="modal-topbar">
+      <div class="modal-title">Name this Roomba</div>
+      <button class="modal-close" id="name-modal-cancel">✕</button>
+    </div>
+    <p class="modal-sub">BLE name: <code id="name-modal-ble"></code></p>
+    <input class="modal-input" id="name-modal-input" type="text"
+           placeholder="e.g. Living Room, Kitchen…" maxlength="40" autocomplete="off" />
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="name-modal-save">Save &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── How it works modal ── -->
+<div class="modal-overlay" id="info-modal">
+  <div class="modal-sheet" style="position:relative;padding-top:22px">
+    <button class="modal-close" id="info-modal-close" style="position:absolute;top:16px;right:20px">✕</button>
+    <div id="info-modal-content"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Global error trap (debug) ─────────────────────────────────────────────────
+window.onerror = function(msg, src, line, col, err) {
+  const detail = `${msg}\n\nLine ${line}:${col}\n${err?.stack || ''}`;
+  const el = document.getElementById('error-msg');
+  if (el) el.textContent = detail;
+  const scr = document.getElementById('screen-error');
+  if (scr) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    scr.classList.add('active');
+  }
+  return false;
+};
+window.addEventListener('unhandledrejection', function(e) {
+  const err = e.reason;
+  const msg = err?.message || String(err);
+  const stack = err?.stack || '';
+  const detail = `Unhandled: ${msg}\n\n${stack}`;
+  const el = document.getElementById('error-msg');
+  if (el) el.textContent = detail;
+  const scr = document.getElementById('screen-error');
+  if (scr) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    scr.classList.add('active');
+  }
+});
+
+// ── GATT UUIDs ────────────────────────────────────────────────────────────────
+const SVC          = 'c74edd21-763c-4e54-85a8-43bb75035d75';
+const CHAR_VER     = 'c74e0014-763c-4e54-85a8-43bb75035d75';
+const CHAR_HOST    = 'c74e0015-763c-4e54-85a8-43bb75035d75';
+const CHAR_SW      = 'c74e0016-763c-4e54-85a8-43bb75035d75';
+const CHAR_CAP1    = 'c74e0017-763c-4e54-85a8-43bb75035d75';
+const CHAR_CAP2    = 'c74e0018-763c-4e54-85a8-43bb75035d75';
+const CHAR_MAC     = 'c74e0019-763c-4e54-85a8-43bb75035d75';
+const CHAR_PROTO   = 'c74e001a-763c-4e54-85a8-43bb75035d75';
+const CHAR_CMD     = 'c74e000b-763c-4e54-85a8-43bb75035d75';
+const CHAR_STATE   = 'c74e000c-763c-4e54-85a8-43bb75035d75';
+const CHAR_IND1C   = 'c74e001c-763c-4e54-85a8-43bb75035d75';
+const CHAR_IND1D   = 'c74e001d-763c-4e54-85a8-43bb75035d75';
+const CHAR_SIZE    = 'c74e0022-763c-4e54-85a8-43bb75035d75';
+const CHAR_PAYLOAD = 'c74e0023-763c-4e54-85a8-43bb75035d75';
+
+// ── Manufacturer data exclusion ───────────────────────────────────────────────
+const COMPANY_ID   = 0x0600;          // iRobot company identifier (confirmed)
+const MANU_TRAILER = [0x00, 0x09];   // fixed 2-byte trailer on all iRobot manuData
+
+const ST_READY  = 0x64;
+const ST_MATTER = 0x6b;
+
+const MATTER_TTL = 5 * 60 * 1000; // 5 minutes in ms
+
+// ── Verhoeff tables (Matter SDK) ──────────────────────────────────────────────
+const VH_D = [
+  [0,1,2,3,4,5,6,7,8,9],
+  [1,2,3,4,0,6,7,8,9,5],
+  [2,3,4,0,1,7,8,9,5,6],
+  [3,4,0,1,2,8,9,5,6,7],
+  [4,0,1,2,3,9,5,6,7,8],
+  [5,9,8,7,6,0,4,3,2,1],
+  [6,5,9,8,7,1,0,4,3,2],
+  [7,6,5,9,8,2,1,0,4,3],
+  [8,7,6,5,9,3,2,1,0,4],
+  [9,8,7,6,5,4,3,2,1,0],
+];
+const VH_P = [
+  [0,1,2,3,4,5,6,7,8,9],
+  [1,5,7,6,2,8,3,0,9,4],
+  [5,8,0,3,7,9,6,1,4,2],
+  [8,9,1,6,0,4,3,5,2,7],
+  [9,4,5,3,1,2,6,8,7,0],
+  [4,2,8,6,5,7,3,9,0,1],
+  [2,7,9,3,8,0,6,4,1,5],
+  [7,0,4,6,9,1,3,2,5,8],
+];
+const VH_INV = [0,4,3,2,1,9,8,7,6,5];
+
+function verhoeffCheck(digits) {
+  let c = 0;
+  const rev = digits.split('').reverse();
+  for (let i = 0; i < rev.length; i++) {
+    c = VH_D[c][VH_P[(i + 1) % 8][parseInt(rev[i], 10)]];
+  }
+  return VH_INV[c];
+}
+
+// ── Matter manual pairing code (21-digit with VID/PID) ───────────────────────
+function encodeManualCode(discriminator, passcode, vendorId, productId) {
+  const hasVP  = vendorId != null && productId != null;
+  const chunk1 = (discriminator >> 10) | (hasVP ? 4 : 0);
+  const chunk2 = ((discriminator & 0x300) << 6) | (passcode & 0x3FFF);
+  const chunk3 = passcode >> 14;
+  let body = String(chunk1)
+           + String(chunk2).padStart(5, '0')
+           + String(chunk3).padStart(4, '0');
+  if (hasVP) {
+    body += String(vendorId).padStart(5, '0')
+          + String(productId).padStart(5, '0');
+  }
+  return body + verhoeffCheck(body);
+}
+
+// ── Matter QR string (base38, MT: prefix) ────────────────────────────────────
+const B38 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.';
+
+function b38Chunk(val, n) {
+  let s = '';
+  for (let i = 0; i < n; i++) { s += B38[val % 38]; val = Math.floor(val / 38); }
+  return s;
+}
+
+function encodeQRString(version, vendorId, productId, flow, caps, discriminator, passcode) {
+  let val = 0n, bit = 0;
+  const pack = (v, w) => {
+    val |= (BigInt(v) & ((1n << BigInt(w)) - 1n)) << BigInt(bit);
+    bit += w;
+  };
+  pack(version, 3); pack(vendorId, 16); pack(productId, 16);
+  pack(flow, 2);    pack(caps, 8);      pack(discriminator, 12);
+  pack(passcode, 27); pack(0, 4);
+
+  const bytes = [];
+  let tmp = val;
+  for (let i = 0; i < 11; i++) { bytes.push(Number(tmp & 0xffn)); tmp >>= 8n; }
+
+  let result = '', off = 0;
+  while (off < bytes.length) {
+    const rem = bytes.length - off;
+    if (rem > 2) {
+      const v = bytes[off] | (bytes[off+1] << 8) | (bytes[off+2] << 16);
+      result += b38Chunk(v, 5); off += 3;
+    } else if (rem === 2) {
+      result += b38Chunk(bytes[off] | (bytes[off+1] << 8), 4); break;
+    } else {
+      result += b38Chunk(bytes[off], 2); break;
+    }
+  }
+  return 'MT:' + result;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const decoder = new TextDecoder();
+
+function readText(dataView) {
+  return decoder.decode(dataView.buffer).replace(/\0/g, '').trim();
+}
+
+function hexToBytes(hex) {
+  hex = hex.replace(/\s/g, '');
+  const arr = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < arr.length; i++) arr[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return arr;
+}
+
+// Derive 18-byte manufacturer data from the hostname characteristic value.
+// CHAR_HOST contains JSON like {"hostname":"iRobot-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"}.
+// The 32 hex chars are the 16 unique bytes; appending MANU_TRAILER gives the full payload.
+function manuDataFromHostname(hostnameText) {
+  const match = hostnameText.match(/iRobot-([0-9A-Fa-f]{32})/);
+  if (!match) return null;
+  return new Uint8Array([...hexToBytes(match[1]), ...MANU_TRAILER]);
+}
+
+function jfield(raw, field) {
+  const m = raw.match(new RegExp('"' + field + '":"([^"]+)"'));
+  return m ? m[1] : null;
+}
+
+async function writeWithResponse(char, value) {
+  const fn = char.writeValueWithResponse || char.writeValue;
+  return fn.call(char, value);
+}
+
+function waitForState(char, predicate, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        char.removeEventListener('characteristicvaluechanged', handler);
+        reject(new Error('No response from your Roomba. Make sure to press the POWER button on your Roomba within 60 seconds.'));
+      }
+    }, timeoutMs);
+
+    function handler(event) {
+      const byte = event.target.value.getUint8(0);
+      if (predicate(byte) && !settled) {
+        settled = true;
+        clearTimeout(timer);
+        char.removeEventListener('characteristicvaluechanged', handler);
+        resolve(byte);
+      }
+    }
+    char.addEventListener('characteristicvaluechanged', handler);
+  });
+}
+
+function escHtml(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, durationMs = 3500) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('visible');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('visible');
+    toastTimer = null;
+  }, durationMs);
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (!el) { console.error('showScreen: no element with id=' + id); return; }
+  el.classList.add('active');
+}
+
+let countdownInterval = null;
+function startCountdown(seconds, onExpire) {
+  stopCountdown();
+  let remaining = seconds;
+  const el = document.getElementById('countdown');
+  if (!el) return;
+  el.textContent = remaining;
+  el.className = 'countdown';
+  countdownInterval = setInterval(() => {
+    remaining--;
+    el.textContent = remaining;
+    if (remaining <= 10) el.className = 'countdown urgent';
+    if (remaining <= 0) { stopCountdown(); onExpire(); }
+  }, 1000);
+}
+function stopCountdown() {
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+}
+
+function showError(msg) {
+  stopCountdown();
+  stopExpiryTimers();
+  document.getElementById('error-msg').textContent = msg;
+  showScreen('screen-error');
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    const inp = document.createElement('input');
+    inp.value = text;
+    document.body.appendChild(inp);
+    inp.select();
+    document.execCommand('copy');
+    document.body.removeChild(inp);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── "How it works" shared content ────────────────────────────────────────────
+function howItWorksHTML() {
+  return `
+    <div class="card-title">How It Works</div>
+    <div class="instructions">
+      <div class="instr-step">
+        <div class="instr-num">1</div>
+        <div class="instr-text">Tap <span>Connect</span>, pick your Roomba from the list, and give it a <span>friendly name</span> for easy identification</div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">2</div>
+        <div class="instr-text">Tap <span>Onboard</span>, then press the <span>POWER</span> button on your Roomba when prompted</div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">3</div>
+        <div class="instr-text">Copy the Matter setup code or scan the QR code to add your Roomba to <span>Apple Home</span> (or any Matter controller) to finish pairing</div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">4</div>
+        <div class="instr-text">Your Roomba is saved to your list — tap <span>View Code</span> within 5 minutes, or <span>Re-onboard</span> any time to generate a fresh pairing code</div>
+      </div>
+    </div>`;
+}
+
+// ── Nickname modal ────────────────────────────────────────────────────────────
+function showNicknameModal(bleName) {
+  return new Promise((resolve, reject) => {
+    const overlay  = document.getElementById('name-modal');
+    const input    = document.getElementById('name-modal-input');
+    const bleEl    = document.getElementById('name-modal-ble');
+    const saveBtn  = document.getElementById('name-modal-save');
+    const cancelBtn = document.getElementById('name-modal-cancel');
+
+    bleEl.textContent = bleName || '(unnamed)';
+    input.value       = '';
+    input.placeholder = bleName ? `e.g. ${bleName}, Kitchen…` : 'e.g. Living Room, Kitchen…';
+    overlay.classList.add('open');
+    setTimeout(() => input.focus(), 250);
+
+    function finish(confirmed) {
+      overlay.classList.remove('open');
+      saveBtn.removeEventListener('click', onSave);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlay);
+      input.removeEventListener('keydown', onKey);
+      if (confirmed) resolve((input.value.trim() || bleName || '').trim());
+      else reject(Object.assign(new Error('Cancelled'), { name: 'UserCancelled' }));
+    }
+    const onSave    = () => finish(true);
+    const onCancel  = () => finish(false);
+    const onOverlay = e => { if (e.target === overlay) finish(false); };
+    const onKey     = e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); };
+
+    saveBtn.addEventListener('click', onSave);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlay);
+    input.addEventListener('keydown', onKey);
+  });
+}
+
+// ── Info modal ────────────────────────────────────────────────────────────────
+function openInfoModal() {
+  document.getElementById('info-modal-content').innerHTML = howItWorksHTML();
+  document.getElementById('info-modal').classList.add('open');
+}
+function closeInfoModal() {
+  document.getElementById('info-modal').classList.remove('open');
+}
+document.getElementById('info-modal-close').addEventListener('click', closeInfoModal);
+document.getElementById('info-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('info-modal')) closeInfoModal();
+});
+document.getElementById('btn-info').addEventListener('click', openInfoModal);
+
+// Global ESC — closes whichever modal is currently open
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('info-modal').classList.contains('open')) {
+    closeInfoModal();
+  } else if (document.getElementById('name-modal').classList.contains('open')) {
+    document.getElementById('name-modal-cancel').click();
+  }
+});
+
+// ── Compat check ──────────────────────────────────────────────────────────────
+function checkCompat() {
+  const banner = document.getElementById('compat-banner');
+  if (!navigator.bluetooth) {
+    banner.style.display = 'block';
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      banner.innerHTML = '<strong>Web Bluetooth not available in this browser.</strong> Please open this page in <a href="https://apps.apple.com/us/app/bluetooth-browser/id6455128847" target="_blank"><strong>Bluetooth Browser</strong></a> — a free browser on the App Store that supports Web Bluetooth on iOS.';
+    } else {
+      banner.innerHTML = '<strong>Web Bluetooth is not supported in this browser.</strong> Please use Chrome on Desktop, macOS, or Android, or <a href="https://apps.apple.com/us/app/bluetooth-browser/id6455128847" target="_blank">Bluetooth Browser</a> browser for iOS or macOS.';
+    }
+    document.getElementById('btn-add-new').disabled = true;
+  }
+}
+
+// ── Robot registry — localStorage ────────────────────────────────────────────
+// Entry: { mac, bleName, nickname?, firmware, addedAt, manuData?,
+//          matter?: { qrString, manualCode, generatedAt } }
+const LS_KEY = 'roomba-robots-v3';
+
+function savedRobots() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveRobot(robot) {
+  if (!robot?.mac) return;
+  const list = savedRobots().filter(r => r.mac !== robot.mac);
+  list.unshift(robot);
+  try { localStorage.setItem(LS_KEY, JSON.stringify(list.slice(0, 20))); }
+  catch {}
+}
+
+function forgetRobot(mac) {
+  const list = savedRobots().filter(r => r.mac !== mac);
+  try { localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+  catch {}
+}
+
+// ── Matter code validity ──────────────────────────────────────────────────────
+function isMatterValid(robot) {
+  return !!(robot?.matter?.generatedAt && (Date.now() - robot.matter.generatedAt) < MATTER_TTL);
+}
+
+function matterTimeLeftMs(robot) {
+  if (!robot?.matter?.generatedAt) return 0;
+  return Math.max(0, MATTER_TTL - (Date.now() - robot.matter.generatedAt));
+}
+
+// ── Expiry timers ─────────────────────────────────────────────────────────────
+let resultExpiryInterval = null;
+let pcExpiryInterval     = null;
+
+function stopExpiryTimers() {
+  if (resultExpiryInterval) { clearInterval(resultExpiryInterval); resultExpiryInterval = null; }
+  if (pcExpiryInterval)     { clearInterval(pcExpiryInterval);     pcExpiryInterval     = null; }
+  stopHomeCardTimer();
+}
+
+function updateExpiryUI(barId, labelId, robot) {
+  const timeLeft = matterTimeLeftMs(robot);
+  const pct      = Math.max(0, (timeLeft / MATTER_TTL) * 100);
+  const bar      = document.getElementById(barId);
+  const label    = document.getElementById(labelId);
+  if (!bar || !label) return timeLeft > 0;
+
+  bar.style.width = pct + '%';
+
+  // Color zones
+  const isWarn = pct < 33 && pct > 10;
+  const isCrit = pct <= 10 && timeLeft > 0;
+  bar.className = 'expiry-bar-fill' + (isCrit ? ' crit' : isWarn ? ' warn' : '');
+
+  if (timeLeft <= 0) {
+    label.textContent = 'Expired';
+    label.className   = 'expiry-label expired';
+    return false;
+  }
+
+  const secs    = Math.ceil(timeLeft / 1000);
+  const m       = Math.floor(secs / 60);
+  const s       = secs % 60;
+  const timeStr = m + ':' + String(s).padStart(2, '0') + ' remaining';
+  label.textContent = timeStr;
+  label.className   = 'expiry-label' + (isCrit ? ' crit' : isWarn ? ' warn' : '');
+  return true;
+}
+
+function startResultExpiry(robot) {
+  if (resultExpiryInterval) clearInterval(resultExpiryInterval);
+  updateExpiryUI('result-expiry-bar', 'result-expiry-label', robot);
+  resultExpiryInterval = setInterval(() => {
+    const alive = updateExpiryUI('result-expiry-bar', 'result-expiry-label', robot);
+    if (!alive) {
+      clearInterval(resultExpiryInterval); resultExpiryInterval = null;
+      // Auto-dismiss: if the user is still on the result screen, send them home
+      if (document.getElementById('screen-result')?.classList.contains('active')) {
+        activeDevice = null;
+        renderHome();
+        showToast('Pairing window expired — re-onboard to generate a new code.');
+      }
+    }
+  }, 500);
+}
+
+function startPCExpiry(robot, onExpired) {
+  if (pcExpiryInterval) clearInterval(pcExpiryInterval);
+  updateExpiryUI('pc-expiry-bar', 'pc-expiry-label', robot);
+  pcExpiryInterval = setInterval(() => {
+    const alive = updateExpiryUI('pc-expiry-bar', 'pc-expiry-label', robot);
+    if (!alive) {
+      clearInterval(pcExpiryInterval);
+      pcExpiryInterval = null;
+      if (onExpired) onExpired();
+    }
+  }, 500);
+}
+
+// ── Home card ring timer ──────────────────────────────────────────────────────
+const RING_CIRC = 31.4; // 2π × r(5)
+let homeCardInterval = null;
+
+function stopHomeCardTimer() {
+  if (homeCardInterval) { clearInterval(homeCardInterval); homeCardInterval = null; }
+}
+
+function updateHomeCardRings() {
+  document.querySelectorAll('.js-view-code[data-expires-at]').forEach(btn => {
+    if (btn.disabled) return; // already marked expired
+    const expiresAt = parseInt(btn.dataset.expiresAt, 10);
+    const timeLeft  = Math.max(0, expiresAt - Date.now());
+    const fraction  = timeLeft / MATTER_TTL;
+    const prog      = btn.querySelector('.ring-prog');
+
+    if (prog) {
+      prog.style.strokeDashoffset = RING_CIRC * (1 - fraction);
+      prog.setAttribute('stroke', timeLeft < 60000 ? 'var(--warn)' : 'var(--success)');
+    }
+
+    if (timeLeft <= 0) {
+      // Transition the button inline to the expired style without a full re-render
+      btn.className = 'btn-action btn-action-secondary js-view-code';
+      btn.style.opacity = '.5';
+      btn.style.cursor  = 'default';
+      btn.disabled = true;
+      btn.innerHTML = 'Code Expired';
+    } else if (timeLeft < 60000) {
+      // Near-expiry: swap to warn style if not already
+      if (!btn.classList.contains('btn-action-success-warn')) {
+        btn.className = 'btn-action btn-action-success-warn js-view-code';
+      }
+    }
+  });
+}
+
+// ── Home screen ───────────────────────────────────────────────────────────────
+function renderHome() {
+  stopExpiryTimers();
+  const robots    = savedRobots();
+  const hasRobots = robots.length > 0;
+
+  document.getElementById('home-empty').style.display  = hasRobots ? 'none' : 'block';
+  document.getElementById('home-robots').style.display = hasRobots ? 'block' : 'none';
+  document.getElementById('btn-add-new').textContent   = hasRobots ? 'Add Another Roomba' : 'Connect to Roomba';
+
+  // "i" button only needed once there are robots (empty state shows the card inline)
+  const infoBtn = document.getElementById('btn-info');
+  infoBtn.style.display = hasRobots ? 'flex' : 'none';
+
+  // Always keep the empty-state how-it-works card fresh
+  document.getElementById('home-how-it-works').innerHTML = howItWorksHTML();
+
+  if (hasRobots) {
+    const container = document.getElementById('robot-cards');
+    container.innerHTML = '';
+    robots.forEach(robot => renderRobotCard(container, robot));
+    // Start ring timer if any valid codes are showing
+    if (robots.some(r => isMatterValid(r))) {
+      updateHomeCardRings();
+      homeCardInterval = setInterval(updateHomeCardRings, 500);
+    }
+  }
+
+  showScreen('screen-home');
+}
+
+function renderRobotCard(container, robot) {
+  const label    = robot.nickname || robot.bleName || robot.mac;
+  const sublabel = [robot.nickname ? robot.bleName : null, robot.mac].filter(Boolean).join(' · ');
+  const valid    = isMatterValid(robot);
+  const hasCode  = !!robot.matter;
+  const timeLeft = matterTimeLeftMs(robot);
+  const nearExp  = valid && timeLeft < 60000; // < 1 min
+
+  const card = document.createElement('div');
+  card.className = 'robot-card';
+
+  let codeBtnHtml = '';
+  if (valid) {
+    const cls       = nearExp ? 'btn-action btn-action-success-warn' : 'btn-action btn-action-success';
+    const lbl       = ' View Code';
+    const expiresAt = (robot.matter?.generatedAt || 0) + MATTER_TTL;
+    const fraction  = Math.max(0, matterTimeLeftMs(robot) / MATTER_TTL);
+    const offset    = RING_CIRC * (1 - fraction);
+    const ringColor = nearExp ? 'var(--warn)' : 'var(--success)';
+    const ring = `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" style="flex-shrink:0">
+      <circle cx="7" cy="7" r="5" fill="none" stroke="var(--border)" stroke-width="2"/>
+      <circle class="ring-prog" cx="7" cy="7" r="5" fill="none" stroke="${ringColor}" stroke-width="2"
+        stroke-dasharray="${RING_CIRC}" stroke-dashoffset="${offset.toFixed(2)}"
+        transform="rotate(-90 7 7)" style="transition:stroke-dashoffset .5s linear,stroke .5s"/>
+    </svg>`;
+    codeBtnHtml = `<button class="${cls} js-view-code" data-expires-at="${expiresAt}">${ring}${lbl}</button>`;
+  } else if (hasCode) {
+    codeBtnHtml = `<button class="btn-action btn-action-secondary js-view-code" style="opacity:.5;cursor:default" disabled>Code Expired</button>`;
+  }
+
+  card.innerHTML = `
+    <div class="robot-card-top">
+      <div class="robot-avatar">🤖</div>
+      <div class="robot-card-info">
+        <div class="robot-card-name">${escHtml(label)}</div>
+        <div class="robot-card-sub">${escHtml(sublabel || robot.mac)}</div>
+      </div>
+      <button class="robot-forget-btn js-forget" title="Remove robot">✕</button>
+    </div>
+    <div class="robot-card-actions">
+      ${codeBtnHtml}
+      <button class="btn-action ${hasCode ? 'btn-action-inverted' : 'btn-action-primary'} js-onboard">${hasCode ? 'Re-onboard' : 'Onboard'}</button>
+    </div>
+  `;
+
+  card.querySelector('.js-forget').addEventListener('click', () => {
+    forgetRobot(robot.mac);
+    renderHome();
+  });
+
+  card.querySelector('.js-onboard').addEventListener('click', () => {
+    runReOnboard(robot);
+  });
+
+  const viewBtn = card.querySelector('.js-view-code');
+  if (viewBtn && !viewBtn.disabled) {
+    viewBtn.addEventListener('click', () => openPairingCode(robot));
+  }
+
+  container.appendChild(card);
+}
+
+// ── Pairing code screen ───────────────────────────────────────────────────────
+let pcCurrentRobot = null;
+
+function openPairingCode(robot) {
+  stopExpiryTimers();
+  pcCurrentRobot = robot;
+
+  const label = robot.nickname || robot.bleName || robot.mac;
+  document.getElementById('pc-robot-name').textContent = label;
+
+  const valid = isMatterValid(robot);
+  document.getElementById('pc-valid').style.display   = valid ? 'block' : 'none';
+  document.getElementById('pc-expired').style.display = valid ? 'none'  : 'block';
+
+  if (valid) {
+    document.getElementById('pc-manual-code').textContent = robot.matter.setupPin || robot.matter.manualCode;
+    document.getElementById('pc-qr-string').textContent   = robot.matter.qrString;
+
+    const pcQrEl = document.getElementById('pc-qr-canvas');
+    pcQrEl.innerHTML = '';
+    const size = Math.min(window.innerWidth - 80, 280);
+    new QRCode(pcQrEl, {
+      text: robot.matter.qrString, width: size, height: size,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+
+    startPCExpiry(robot, () => {
+      // Code expired while screen is showing
+      document.getElementById('pc-valid').style.display   = 'none';
+      document.getElementById('pc-expired').style.display = 'block';
+    });
+  }
+
+  showScreen('screen-pairing-code');
+}
+
+// ── Device picker ─────────────────────────────────────────────────────────────
+// Note: Chrome's manufacturerData in exclusionFilters does not reliably work
+// (likely because iRobot puts manuData in scan responses, not initial ADV_IND packets).
+// Duplicate detection is handled post-pick by MAC comparison in runAddRobot().
+async function pickNewDevice() {
+  return await navigator.bluetooth.requestDevice({ filters: [{ services: [SVC] }] });
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeDevice = null;
+let activeRobot  = null;
+
+// ── Add new robot (connect → read info → duplicate-check by MAC → save) ──────
+async function runAddRobot() {
+  showScreen('screen-connecting');
+  document.getElementById('connecting-msg').textContent = 'Select your Roomba in the device picker…';
+
+  let device;
+  try {
+    device = await pickNewDevice();
+  } catch (err) {
+    if (err.name === 'NotFoundError' || err.name === 'AbortError') {
+      renderHome();
+      return;
+    }
+    showError(err.message || String(err));
+    return;
+  }
+
+  // Connect and read MAC first so we can detect duplicates before asking for a name
+  showScreen('screen-connecting');
+  document.getElementById('connecting-msg').textContent =
+    `Connecting to ${device.name || 'Roomba'}…`;
+
+  let server, hostRaw, swRaw, mac, hostname, swVer, manuData;
+  try {
+    server = await device.gatt.connect();
+    document.getElementById('connecting-msg').textContent = 'Reading device info…';
+    const service = await server.getPrimaryService(SVC);
+
+    const [hRaw, sRaw, mRaw] = await Promise.all([
+      service.getCharacteristic(CHAR_HOST).then(c => c.readValue()).then(readText),
+      service.getCharacteristic(CHAR_SW).then(c => c.readValue()).then(readText),
+      service.getCharacteristic(CHAR_MAC).then(c => c.readValue()).then(readText),
+    ]);
+    hostRaw  = hRaw;
+    swRaw    = sRaw;
+    hostname = jfield(hostRaw, 'hostname') || device.name || '?';
+    swVer    = jfield(swRaw,   'sw')       || '?';
+    mac      = jfield(mRaw,    'mac')      || String(Date.now());
+
+    // Derive manuData from hostname char (stored for future use when exclusionFilter support improves)
+    const manuBytes = manuDataFromHostname(hostRaw);
+    manuData = manuBytes
+      ? Array.from(manuBytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('')
+      : null;
+
+  } catch (err) {
+    try { server?.disconnect(); } catch {}
+    showError(err.message || String(err));
+    return;
+  }
+  try { server?.disconnect(); } catch {}
+
+  // Duplicate check: if this MAC is already saved, toast and go home
+  const existingSaved = savedRobots().find(r => r.mac === mac);
+  if (existingSaved) {
+    // Backfill manuData if an older save was missing it
+    if (!existingSaved.manuData && manuData) {
+      saveRobot({ ...existingSaved, manuData });
+    }
+    const label = existingSaved.nickname || existingSaved.bleName || mac;
+    renderHome();
+    showToast(`"${label}" is already added — tap Onboard to generate a new pairing code.`);
+    return;
+  }
+
+  // Ask for a friendly name (only for genuinely new robots)
+  let nickname = '';
+  try {
+    nickname = await showNicknameModal(device.name || '');
+  } catch {
+    renderHome();
+    return;
+  }
+
+  const robot = {
+    mac,
+    bleName:  device.name || hostname,
+    firmware: swVer,
+    addedAt:  Date.now(),
+    nickname: nickname || null,
+    matter:   null,
+    manuData: manuData || null,
+  };
+  saveRobot(robot);
+  renderHome();
+}
+
+// ── Re-onboard a saved robot ──────────────────────────────────────────────────
+async function runReOnboard(robot) {
+  activeRobot = robot;
+
+  showScreen('screen-connecting');
+  document.getElementById('connecting-msg').textContent =
+    `Looking for ${robot.nickname || robot.bleName}…`;
+
+  let device;
+  try {
+    // manufacturerData filter (Chrome only) narrows the picker to just this robot.
+    // iOS Safari doesn't support manufacturerData as a filter key and throws a
+    // TypeError/payload error — we catch that and retry with the name filter.
+    let filter;
+    if (robot.manuData) {
+      try {
+        filter = { manufacturerData: [{ companyIdentifier: COMPANY_ID, dataPrefix: hexToBytes(robot.manuData) }] };
+        device = await navigator.bluetooth.requestDevice({
+          filters: [filter],
+          optionalServices: [SVC],
+        });
+      } catch (manuErr) {
+        // If the error is about an invalid filter (not a user cancel), fall back to name.
+        if (manuErr.name === 'NotFoundError' || manuErr.name === 'AbortError') {
+          renderHome();
+          return;
+        }
+        // TypeError / "Invalid payload" = browser doesn't support manufacturerData filter
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: robot.bleName }],
+          optionalServices: [SVC],
+        });
+      }
+    } else {
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ name: robot.bleName }],
+        optionalServices: [SVC],
+      });
+    }
+  } catch (err) {
+    if (err.name === 'NotFoundError' || err.name === 'AbortError') {
+      renderHome();
+      return;
+    }
+    showError(err.message || String(err));
+    return;
+  }
+
+  activeDevice = device;
+  await connectAndOnboard(device, robot);
+}
+
+// ── Core: connect → confirm info → Matter onboard → save codes ───────────────
+async function connectAndOnboard(device, knownRobot) {
+  let server;
+
+  try {
+    showScreen('screen-connecting');
+    document.getElementById('connecting-msg').textContent =
+      `Connecting to ${knownRobot?.nickname || device.name || 'Roomba'}…`;
+
+    device.addEventListener('gattserverdisconnected', () => {
+      if (server?.connected) return;
+      stopCountdown();
+    });
+
+    server = await device.gatt.connect();
+
+    document.getElementById('connecting-msg').textContent = 'Reading device info…';
+    const service = await server.getPrimaryService(SVC);
+
+    async function getChar(uuid, optional = false) {
+      try { return await service.getCharacteristic(uuid); }
+      catch (e) { if (!optional) throw e; return null; }
+    }
+
+    const cVer     = await getChar(CHAR_VER);
+    const cHost    = await getChar(CHAR_HOST);
+    const cSw      = await getChar(CHAR_SW);
+    const cCap1    = await getChar(CHAR_CAP1);
+    const cCap2    = await getChar(CHAR_CAP2);
+    const cMac     = await getChar(CHAR_MAC);
+    const cProto   = await getChar(CHAR_PROTO);
+    const cCmd     = await getChar(CHAR_CMD);
+    const cState   = await getChar(CHAR_STATE);
+    const cInd1c   = await getChar(CHAR_IND1C);
+    const cInd1d   = await getChar(CHAR_IND1D, true);
+    const cSize    = await getChar(CHAR_SIZE);
+    const cPayload = await getChar(CHAR_PAYLOAD);
+
+    // Subscribe
+    await cState.startNotifications();
+    await cInd1c.startNotifications();
+    if (cInd1d) { try { await cInd1d.startNotifications(); } catch {} }
+
+    // Read info
+    await cVer.readValue();
+    const hostRaw = readText(await cHost.readValue());
+    const swRaw   = readText(await cSw.readValue());
+    await cCap1.readValue();
+    await cCap2.readValue();
+    const macRaw  = readText(await cMac.readValue());
+    await cProto.readValue();
+
+    const hostname = jfield(hostRaw, 'hostname') || device.name || '?';
+    const swVer    = jfield(swRaw,   'sw')       || '?';
+    const mac      = jfield(macRaw,  'mac')      || device.name || String(Date.now());
+
+    // Derive manuData fresh from CHAR_HOST (backfills robots saved before this feature)
+    const reManuBytes = manuDataFromHostname(hostRaw);
+    const reManuData  = reManuBytes
+      ? Array.from(reManuBytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('')
+      : null;
+
+    // Build the working robot object (always re-onboarding a saved robot)
+    const existingSaved = savedRobots().find(r => r.mac === mac) ?? knownRobot;
+    activeRobot = {
+      mac,
+      bleName:  device.name || hostname,
+      firmware: swVer,
+      addedAt:  existingSaved?.addedAt || Date.now(),
+      nickname: existingSaved?.nickname || null,
+      matter:   existingSaved?.matter   || null,
+      manuData: reManuData || existingSaved?.manuData || null,
+    };
+
+    // Save robot to registry immediately (before onboarding, so it appears in list)
+    saveRobot({ ...activeRobot, matter: existingSaved?.matter });
+
+    // Press POWER button
+    showScreen('screen-ready');
+
+    // Race the GATT state wait against an explicit cancel promise so tapping
+    // Cancel rejects immediately rather than waiting for the 60s timeout.
+    let cancelReject;
+    const cancelPromise = new Promise((_, rej) => { cancelReject = rej; });
+    const cancelHandler = () => {
+      const err = new Error('Cancelled');
+      err.name = 'UserCancelReady';
+      cancelReject(err);
+    };
+    document.getElementById('btn-cancel-ready').addEventListener('click', cancelHandler, { once: true });
+
+    const buttonPromise = waitForState(cState, b => b === ST_READY, 60000);
+    startCountdown(60, () => {});
+
+    await Promise.race([buttonPromise, cancelPromise]);
+    stopCountdown();
+    document.getElementById('btn-cancel-ready').removeEventListener('click', cancelHandler);
+
+    // Request Matter pairing
+    showScreen('screen-commissioning');
+    await writeWithResponse(cCmd, new Uint8Array([0x67]));
+    await waitForState(cState, b => b === ST_MATTER, 30000);
+
+    // Read payload
+    await cSize.readValue();
+    const payloadView = await cPayload.readValue();
+    const payloadStr  = readText(payloadView);
+
+    const parsed = JSON.parse(payloadStr);
+    const op     = parsed?.startMatterCommissioning?.onboardingPayload;
+    if (!op) throw new Error('Robot did not return an onboarding payload. Try again.');
+
+    const discriminator = parseInt(op.discriminator, 16);
+    const passcode      = parseInt(op.passcode,      16);
+    const vendorId      = parseInt(op.vendorId,      16);
+    const productId     = parseInt(op.productId,     16);
+
+    const manualCode  = encodeManualCode(discriminator, passcode, vendorId, productId);
+    const setupPin    = passcode.toString().padStart(8, '0');
+    const qrString    = encodeQRString(0, vendorId, productId, 2, 0x07, discriminator, passcode);
+    const generatedAt = Date.now();
+
+    // Save codes with robot
+    const robotToSave = { ...activeRobot, matter: { qrString, manualCode, setupPin, generatedAt } };
+    saveRobot(robotToSave);
+    activeRobot = robotToSave;
+
+    // Populate result screen
+    const mcEl = document.getElementById('manual-code');
+    const qsEl = document.getElementById('qr-string');
+    if (mcEl) mcEl.textContent = setupPin;
+    if (qsEl) qsEl.textContent = qrString;
+
+    const qrEl = document.getElementById('qr-canvas');
+    qrEl.innerHTML = '';
+    const size = Math.min(window.innerWidth - 80, 280);
+    new QRCode(qrEl, {
+      text: qrString, width: size, height: size,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+
+    showScreen('screen-result');
+    startResultExpiry(robotToSave);
+
+  } catch (err) {
+    stopCountdown();
+    if (err.name === 'UserDisconnect' || err.name === 'UserCancelReady') {
+      try { server?.disconnect(); } catch {}
+      activeDevice = null;
+      renderHome();
+      return;
+    }
+    try { server?.disconnect(); } catch {}
+    showError(err.message || String(err));
+  }
+}
+
+// ── Button wiring ─────────────────────────────────────────────────────────────
+document.getElementById('btn-add-new').addEventListener('click', () => {
+  stopExpiryTimers();
+  runAddRobot();
+});
+
+document.getElementById('btn-result-done').addEventListener('click', () => {
+  stopExpiryTimers();
+  document.getElementById('qr-canvas').innerHTML = '';
+  activeDevice = null;
+  renderHome();
+});
+
+document.getElementById('btn-retry').addEventListener('click', () => {
+  if (activeDevice && activeRobot) connectAndOnboard(activeDevice, activeRobot);
+  else renderHome();
+});
+document.getElementById('btn-error-cancel').addEventListener('click', () => {
+  activeDevice = null;
+  renderHome();
+});
+
+document.getElementById('copy-manual').addEventListener('click', function() {
+  copyText(document.getElementById('manual-code').textContent, this);
+});
+document.getElementById('copy-qr').addEventListener('click', function() {
+  copyText(document.getElementById('qr-string').textContent, this);
+});
+
+// Pairing code screen
+document.getElementById('btn-pc-back').addEventListener('click', () => {
+  stopExpiryTimers();
+  document.getElementById('pc-qr-canvas').innerHTML = '';
+  renderHome();
+});
+document.getElementById('pc-copy-manual').addEventListener('click', function() {
+  copyText(document.getElementById('pc-manual-code').textContent, this);
+});
+document.getElementById('pc-copy-qr').addEventListener('click', function() {
+  copyText(document.getElementById('pc-qr-string').textContent, this);
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkCompat();
+renderHome();
+</script>
+</body>
+</html>
