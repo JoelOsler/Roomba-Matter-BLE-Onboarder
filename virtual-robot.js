@@ -5,7 +5,7 @@
 //  page is open, then use the page normally.
 //
 //  ┌─ CHANGE THIS to test with more or fewer robots ────────────────────────┐
-const ROBOT_COUNT = 5;
+var ROBOT_COUNT = 5;
 //  └────────────────────────────────────────────────────────────────────────┘
 //
 //  CONTROLS (run in console any time after injecting):

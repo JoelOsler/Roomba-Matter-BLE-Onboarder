@@ -52,7 +52,7 @@ The models listed above are compatible with the Roomba Home app, and the Matter 
 
 ## Room & Zone Sharing
 
-For your roomba's room and zone names to appear in your Matter controller (e.g. Apple Home), you need to grant iRobot your consent to share your map data. This can be done before or after Matter setup.
+For your Roomba's room and zone names to appear in your Matter controller (e.g. Apple Home), you need to grant iRobot your consent to share your map data. This can be done before or after Matter setup.
 
 This step is not required to setup Matter, only to sync the room and zone names to Matter.
 > **Note about revoking consent after setup**\
