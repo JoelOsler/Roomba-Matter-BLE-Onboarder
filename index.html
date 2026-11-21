@@ -649,7 +649,7 @@
 
   <!-- ── Persistent header ── -->
   <div class="header">
-    <div class="header-icon">🤖</div>
+    <div class="header-icon" id="header-icon">🤖</div>
     <div style="flex:1">
       <h1>Roomba Matter Onboarder</h1>
       <div class="sub">Pair your robot with Apple Home or any Matter controller</div>
@@ -1860,6 +1860,45 @@ document.getElementById('pc-copy-qr').addEventListener('click', function() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 checkCompat();
 renderHome();
+
+// ── Virtual robot long-press easter egg ──────────────────────────────────────
+(function () {
+  const HOLD_MS = 3000;
+  const el = document.getElementById('header-icon');
+  let holdTimer = null;
+  let virtualLoaded = false;
+
+  function cancelHold() {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  }
+
+  function onHoldFired() {
+    holdTimer = null;
+    if (!virtualLoaded) {
+      // Load virtual-robot.js dynamically
+      const s = document.createElement('script');
+      s.src = 'virtual-robot.js';
+      s.onload = () => {
+        virtualLoaded = true;
+        showToast('🤖 Virtual Robots enabled (' + (typeof ROBOT_COUNT !== 'undefined' ? ROBOT_COUNT : '?') + ' robots)');
+      };
+      s.onerror = () => showToast('⚠️ Could not load virtual-robot.js');
+      document.head.appendChild(s);
+    } else {
+      if (window.virtualRoomba?.restore) window.virtualRoomba.restore();
+      virtualLoaded = false;
+      showToast('Virtual Robots disabled');
+    }
+  }
+
+  el.addEventListener('pointerdown', (e) => {
+    holdTimer = setTimeout(onHoldFired, HOLD_MS);
+  });
+  el.addEventListener('pointerup',     cancelHold);
+  el.addEventListener('pointercancel', cancelHold);
+  el.addEventListener('contextmenu',   (e) => { if (holdTimer || !virtualLoaded) e.preventDefault(); });
+})();
+
 </script>
 </body>
 </html>
