@@ -8,7 +8,7 @@ iRobot quietly removed the Apple Home / Matter commissioning flow from version 3
 
 ## Web Tool (Recommended)
 
-**No installation needed.** The commissioner runs entirely in your browser using the Web Bluetooth API — open the link below, pair your robot, and get a QR code and Setup PIN. Works on desktop and Android mobile.
+**No installation needed.** The commissioner runs entirely in your browser using the Web Bluetooth API — open the link below, pair your robot, and get a QR code and Setup PIN. Works on Desktop, Android, and iOS.
 
 👉 **[Open the Roomba Matter Commissioner](https://joelosler.github.io/Roomba-Matter-BLE-Onboarder/)**
 
@@ -26,19 +26,19 @@ iRobot quietly removed the Apple Home / Matter commissioning flow from version 3
 3. Press the **POWER** button on your robot when prompted
 4. Scan the QR code with Apple Home, Google Home, or your Matter app of choice
 
-> **Browser support:** Web Bluetooth is supported in Chrome and Edge on desktop, and Chrome on Android. Safari and Firefox are not supported.
+### Mobile (iOS / iPadOS)
+
+Safari does not support Web Bluetooth. Use **[Bluetooth Browser](https://apps.apple.com/app/id6455128847)** — a free app that adds Web Bluetooth support on iPhone and iPad (iOS 17+).
+
+1. Install [Bluetooth Browser](https://apps.apple.com/app/id6455128847) from the App Store
+2. Open the link above inside Bluetooth Browser
+3. Tap **Add Robot** and select your Roomba from the picker
+4. Press the **POWER** button on your robot when prompted
+5. Scan the QR code with Apple Home or enter the Setup PIN manually
+
+> **Browser support:** Chrome / Edge on desktop ✅ · Chrome on Android ✅ · Bluetooth Browser on iOS ✅ · Safari ❌ · Firefox ❌
 
 ---
-
-| Matter Compatible iRobot Models |
-|------|
-Roomba Max 705 - Tested
-Roomba Plus 500 Combo
-Roomba Max 715 Series Vac
-Roomba Max 775 Series Combo
-Roomba Combo 10 Max
-
-The models listed above are compatible with the Roomba Home app, and the Matter setup from app version 2.2.5, and brought back in version 3.3.1.
 
 | Matter Compatible iRobot Models |
 |------|
@@ -54,35 +54,33 @@ The models listed above are compatible with the Roomba Home app, and the Matter 
 
 For your roomba's room and zone names to appear in your Matter controller (e.g. Apple Home), you need to grant iRobot your consent to share your map data. This can be done before or after Matter setup.
 
-This step is not required to setup Matter, only to sync the room and zone data to Matter.
+This step is not required to setup Matter, only to sync the room and zone names to Matter.
 > **Note about revoking consent after setup**\
 If consent is revoked after commissioning a robot, the previous room names will remain, and any changes made in the Roomba Home app will no longer sync to your Matter Controller. To resume room/zone name syncing, re-consent to share. (See "Granting Consent")
 
 **1. Log in to your iRobot account**
 
-Go to [irobot.com](https://www.irobot.com/en_US/login), sign in, then go to [My Account](https://www.irobot.com/en_US/account) (see top right)
+Go to [irobot.com](https://www.irobot.com/en_US/login), sign in, then go to [My Account](https://www.irobot.com/en_US/account)
 
-**2. Open your browser's DevTools console** (`⌥⌘I` on macOS / `F12` on Windows) and grant consent using the one-liner below. (Having trouble? Log out and log back in again) Then continue to **Installation**.
+**2.** While signed in to [irobot.com](https://www.irobot.com/en_US/account), open the DevTools console (`⌥⌘I` on macOS · `F12` on Windows/Linux) and run one of the snippets below. A popup will confirm the result.
 
-**Granting Consent:** (returns true)
+**Grant consent:**
 ```js
-gigya.accounts.setAccountInfo({ data: { "HOME_KIT_MAP_DATA_SHARING_OPTIN": Date.now().toString() }, callback: (res) => gigya.accounts.getAccountInfo({ callback: (res) => console.log(res.data.HOME_KIT_MAP_DATA_SHARING_OPTIN !== 0) }) })
+gigya.accounts.setAccountInfo({ data: { "HOME_KIT_MAP_DATA_SHARING_OPTIN": Date.now().toString() }, callback: () => gigya.accounts.getAccountInfo({ callback: r => alert(r.data.HOME_KIT_MAP_DATA_SHARING_OPTIN != 0 ? "Map sharing: Enabled" : "Map sharing: Disabled") }) })
 ```
 
 ---
-**If you want to remove or check consent status**
+**To remove or check consent status:**
 
-**Revoke consent:** (returns false)
+**Revoke consent:**
 ```js
-gigya.accounts.setAccountInfo({ data: { "HOME_KIT_MAP_DATA_SHARING_OPTIN": "0" }, callback: (res) => gigya.accounts.getAccountInfo({ callback: (res) => console.log(res.data.HOME_KIT_MAP_DATA_SHARING_OPTIN !== "0") }) })
+gigya.accounts.setAccountInfo({ data: { "HOME_KIT_MAP_DATA_SHARING_OPTIN": "0" }, callback: () => gigya.accounts.getAccountInfo({ callback: r => alert(r.data.HOME_KIT_MAP_DATA_SHARING_OPTIN != 0 ? "Map sharing: Enabled" : "Map sharing: Disabled") }) })
 ```
 
-**Check current consent status**:
+**Check status:**
 ```js
-gigya.accounts.getAccountInfo({ callback: (res) => console.log(res.data.HOME_KIT_MAP_DATA_SHARING_OPTIN != 0) })
+gigya.accounts.getAccountInfo({ callback: r => alert(r.data.HOME_KIT_MAP_DATA_SHARING_OPTIN != 0 ? "Map sharing: Enabled" : "Map sharing: Disabled") })
 ```
-
-The console will print `true` if consent is active, `false` if not.
 
 ## Desktop / Legacy (Node.js)
 
