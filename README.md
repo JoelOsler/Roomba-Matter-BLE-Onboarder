@@ -48,7 +48,7 @@ Roomba Max 715 Series Vac
 Roomba Max 775 Series Combo
 Roomba Combo 10 Max
 
-The models listed above are compatible with the Roomba Home app, and the Matter setup from app version 2.2.5, and brough back in version 3.3.1.
+The models listed above are compatible with the Roomba Home app, and the Matter setup from app version 2.2.5, and brought back in version 3.3.1.
 
 ## Room & Zone Sharing
 
