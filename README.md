@@ -110,6 +110,7 @@ gigya.accounts.getAccountInfo({ callback: r => alert(r.data.HOME_KIT_MAP_DATA_SH
 ```sh
 git clone https://github.com/JoelOsler/Roomba-Matter-BLE-Onboarder
 cd Roomba-Matter-BLE-Onboarder
+cd legacy
 npm install
 ```
 
@@ -192,7 +193,7 @@ All four fields are hex-encoded strings. The tool parses them and encodes both i
 The Roomba GATT profile is fully undocumented. The protocol was reconstructed through the following techniques:
 
 **CoreBluetooth hooking via Frida**\
-A Frida script ([bletrace3.js](bletrace3.js)) was injected into the Roomba Home app on a Apple Silcon-based MacBook Pro to hook CoreBluetooth at the API level. Rather than capturing raw HCI packets, this intercepts the high-level delegate calls — `didDiscoverServices`, `didDiscoverCharacteristics`, `didUpdateValueForCharacteristic`, `didWriteValueForCharacteristic`, and so on — producing a clean, ordered complete log of every BLE operation the app performed: service discovery, CCCD subscriptions, characteristic reads, writes, and notify payloads, labelled with their UUIDs and values.
+A Frida script ([bletrace3.js](legacy/probing-scripts/bletrace3.js)) was injected into the Roomba Home app on a Apple Silcon-based MacBook Pro to hook CoreBluetooth at the API level. Rather than capturing raw HCI packets, this intercepts the high-level delegate calls — `didDiscoverServices`, `didDiscoverCharacteristics`, `didUpdateValueForCharacteristic`, `didWriteValueForCharacteristic`, and so on — producing a clean, ordered complete log of every BLE operation the app performed: service discovery, CCCD subscriptions, characteristic reads, writes, and notify payloads, labelled with their UUIDs and values.
 
 This log was then used to write a Node.js tool that emulates the same sequence with BLE using noble, without the Roomba Home app.
 

@@ -1,0 +1,19 @@
+{
+  "name": "roomba-matter-commissioner",
+  "version": "1.0.0",
+  "description": "Roomba Matter commissioning tool via BLE \u2014 pairs to a Roomba robot and generates a fresh Matter commissioning payload.",
+  "author": "Joel Osler",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node roomba-matter-commissioner.mjs",
+    "debug": "node roomba-matter-commissioner.mjs --debug"
+  },
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-26",
+    "@matter/types": "^0.17.9",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
